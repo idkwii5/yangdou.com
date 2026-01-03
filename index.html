@@ -1,1 +1,503 @@
-123
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="dynamic-title"></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: "#4b56d2",
+            secondary: "#00ff99",
+            dark: "#0b2447",
+            light: "#f5f7fa",
+          },
+          fontFamily: {
+            inter: ["Inter", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto { content-visibility: auto; }
+      .bg-glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); }
+      .text-shadow { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+      .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+      .card-hover:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
+      .btn-hover { transition: all 0.3s ease; }
+      .btn-hover:hover { background-color: #3a45b8; box-shadow: 0 10px 25px -5px rgba(75,86,210,0.4); }
+      .scale-hover { transition: transform 0.3s ease; }
+      .scale-hover:hover { transform: scale(1.05); }
+      .qr-code-popup { opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+      .qr-code-popup.active { opacity: 1; visibility: visible; }
+      .whois-btn { @apply bg-white/10 hover:bg-white/20 text-white text-xs font-medium px-3 py-1 rounded-full ml-2 transition-all duration-300; }
+    }
+  </style>
+  <style>
+    /* 遮罩层用于点击空白关闭移动菜单 */
+    #mobile-menu-mask {
+      display: none;
+      position: fixed;
+      z-index: 49;
+      left: 0; top: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.01);
+    }
+    #mobile-menu.show { display: flex !important; }
+    #mobile-menu-mask.show { display: block !important; }
+    @media (max-width: 767px) {
+      #mobile-menu {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        position: fixed;
+        top: 56px;
+        left: 0;
+        width: 100vw;
+        background: rgba(20, 30, 60, 0.98);
+        z-index: 100;
+        padding: 24px 0 16px 0;
+      }
+      #mobile-menu.show {
+        display: flex !important;
+      }
+      #mobile-menu-mask {
+        display: none;
+        position: fixed;
+        z-index: 99;
+        left: 0; top: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.2);
+      }
+      #mobile-menu-mask.show {
+        display: block !important;
+      }
+      #mobile-menu a, #mobile-menu button {
+        color: #fff;
+        font-size: 18px;
+        width: 90vw;
+        text-align: center;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        background: rgba(255,255,255,0.05);
+        padding: 12px 0;
+      }
+      #mobile-menu a:active, #mobile-menu button:active {
+        background: rgba(255,255,255,0.15);
+      }
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-r from-dark to-primary min-h-screen font-inter text-light flex flex-col overflow-auto">
+  <!-- 頂部導航 -->
+  <nav class="bg-glass py-4 px-6 sticky top-0 z-50 border-b border-white/10">
+    <div class="container mx-auto flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-globe text-secondary text-xl"></i>
+        <span class="font-bold text-xl" id="site-domain"></span>
+      </div>
+      <div class="hidden md:flex items-center space-x-4">
+        <a href="#" id="whois-nav" class="hover:text-secondary transition-colors duration-300 relative" data-i18n="nav.whois">WHOIS</a>
+        <a href="#contact" class="hover:text-secondary transition-colors duration-300 relative contact-link" data-i18n="nav.contact">联系我们</a>
+        <button id="lang-switch" class="hover:text-secondary transition-colors duration-300 relative focus:outline-none" data-i18n="nav.langLabel">Language</button>
+      </div>
+      <div class="md:hidden">
+        <button class="text-light focus:outline-none" id="mobile-menu-btn"><i class="fa fa-bars text-xl"></i></button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 移动端菜单 -->
+  <div id="mobile-menu" class="fixed top-16 left-0 w-full bg-glass z-50 hidden flex-col items-center py-4 md:hidden">
+    <a href="#" id="whois-nav-mobile" class="block py-2 text-light">WHOIS</a>
+    <a href="#contact" class="block py-2 text-light contact-link">联系我们</a>
+    <button id="lang-switch-mobile" class="block py-2 text-light">Language</button>
+  </div>
+
+  <!-- 移动端菜单遮罩 -->
+  <div id="mobile-menu-mask"></div>
+
+  <!-- 二維碼彈出層 -->
+  <div class="qr-code-popup fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl p-6 max-w-xs w-full text-dark shadow-2xl transform transition-transform duration-300 scale-95 active:scale-100">
+      <div class="text-center">
+        <h3 class="font-bold text-lg mb-4" data-i18n="popup.title">专业域名经纪人</h3>
+        <div class="flex items-center justify-center mb-4"><img src="ark.jpg" alt="Broker" class="rounded-full w-20 h-20 object-cover" /></div>
+        <p class="text-sm mb-4" data-i18n="popup.desc">添加微信获取更多域名信息</p>
+        <div class="bg-white p-2 inline-block rounded-lg shadow-md mb-4"><img src="arkqr.png" alt="QR" class="w-48 h-48" /></div>
+        <p class="text-xs text-gray-500" data-i18n="popup.tip">扫描二维码或搜索：hr7388</p>
+        <button class="close-qr mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors" data-i18n="popup.close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主內容區 -->
+  <main class="flex-grow py-8 md:py-12 overflow-auto">
+    <div class="container mx-auto">
+      <div class="max-w-4xl lg:max-w-5xl xl:max-w-6xl mx-auto bg-glass rounded-2xl overflow-hidden shadow-xl">
+        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-[3fr_2fr]">
+          <!-- 左側域名信息 -->
+          <div class="p-4 md:p-6 flex flex-col justify-center">
+            <h1 class="text-2xl md:text-3xl font-bold mb-3 text-shadow" data-i18n="main.title">域名出售</h1>
+            <div class="domain-name mb-6">
+              <span class="text-4xl md:text-5xl font-bold tracking-tight" id="main-domain"></span>
+              <span class="ml-2 text-secondary font-medium text-lg" data-i18n="main.premium">优质域名</span>
+              <a href="#" id="whois-main" class="whois-btn scale-hover align-middle inline-flex items-center ml-2" style="vertical-align:middle;line-height:1.2;" data-i18n="main.whoisBtn"><i class="fa fa-info-circle mr-1"></i> WHOIS</a>
+            </div>
+
+            <div class="features mb-6">
+              <h2 class="text-base md:text-lg font-semibold mb-3" data-i18n="features.title">为什么选择这个域名</h2>
+              <ul class="space-y-2">
+                <li class="flex items-start"><i class="fa fa-check-circle text-secondary mt-1 mr-2"></i><span class="text-sm" data-i18n="features.f1">简洁易记，品牌价值高</span></li>
+                <li class="flex items-start"><i class="fa fa-check-circle text-secondary mt-1 mr-2"></i><span class="text-sm" data-i18n="features.f2">全球顶级域名，安全可靠</span></li>
+                <li class="flex items-start"><i class="fa fa-check-circle text-secondary mt-1 mr-2"></i><span class="text-sm" data-i18n="features.f3">完美适用于游戏、科技、娱乐平台</span></li>
+                <li class="flex items-start"><i class="fa fa-check-circle text-secondary mt-1 mr-2"></i><span class="text-sm" data-i18n="features.f4">已做SEO优化，利于搜索引擎排名</span></li>
+              </ul>
+            </div>
+
+            <div class="domain-stats grid grid-cols-2 gap-3 mb-6">
+              <div class="bg-white/5 p-3 rounded-lg"><div class="text-secondary text-xl font-bold" id="priceCny">180,000</div><div class="text-xs opacity-80" data-i18n="stats.price">当前报价 (CNY)</div></div>
+              <div class="bg-white/5 p-3 rounded-lg"><div class="text-secondary text-xl font-bold" data-i18n="stats.asset">优质</div><div class="text-xs opacity-80" data-i18n="stats.assetDesc">数字资产</div></div>
+              <div class="bg-white/5 p-3 rounded-lg"><div class="text-secondary text-xl font-bold">100%</div><div class="text-xs opacity-80" data-i18n="stats.success">转移成功率</div></div>
+              <div class="bg-white/5 p-3 rounded-lg"><div class="text-secondary text-xl font-bold" data-i18n="stats.instant">立即</div><div class="text-xs opacity-80" data-i18n="stats.instantDesc">可交易</div></div>
+            </div>
+
+            <div class="text-xs mb-2">支持交易平台：</div>
+            <div class="flex items-center space-x-3">
+              <div class="flex items-center space-x-2">
+                <img src="aliyun.svg" alt="Aliyun" class="h-8 w-8 object-contain" />
+                <p class="text-xs" data-i18n="stats.escrow">阿里云</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <img src="ename.svg" alt="Ename" class="h-5" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 右側購買卡片 -->
+          <div class="bg-white text-dark p-4 md:p-6 flex flex-col justify-center">
+            <div class="bg-gradient-to-br from-white to-blue-50 rounded-xl p-6 shadow-lg">
+              <div class="flex justify-between items-center mb-4">
+                <h2 class="text-base md:text-lg font-bold" data-i18n="card.get">获取这个域名</h2>
+                <span class="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium" data-i18n="card.offer">限时特惠</span>
+              </div>
+              <div class="price-section mb-4"><div class="text-2xl md:text-3xl font-bold text-primary" id="priceLabel">¥180,000</div><div class="text-xs md:text-sm text-gray-500" data-i18n="card.once" style="font-size:70%">一次性支付，无隐藏费用</div></div>
+              <div class="payment-options mb-4"><h3 class="font-semibold mb-2 text-xs md:text-sm" data-i18n="card.paymentTitle">支付方式</h3><div class="flex flex-wrap gap-3"><div class="w-12 h-12 flex items-center justify-center"><img src="alipay.svg" alt="Alipay" class="w-8 h-8 object-contain" /></div><div class="w-12 h-12 flex items-center justify-center"><img src="unionpay.svg" alt="UnionPay" class="w-8 h-8 object-contain" /></div><div class="w-12 h-12 flex items-center justify-center"><img src="wechatpay.svg" alt="WeChat Pay" class="w-8 h-8 object-contain" /></div></div></div>
+              <div class="transaction-security mb-4"><h3 class="font-semibold mb-2 text-xs md:text-sm" data-i18n="card.secTitle">交易保障</h3><div class="grid grid-cols-2 gap-2"><div class="flex items-center space-x-2 bg-blue-50 p-2 rounded-lg"><i class="fa fa-shield text-primary text-xs"></i><span class="text-[10px]" data-i18n="card.sec1">安全支付</span></div><div class="flex items-center space-x-2 bg-blue-50 p-2 rounded-lg"><i class="fa fa-clock-o text-primary text-xs"></i><span class="text-[10px]" data-i18n="card.sec2">极速完成交割</span></div><div class="flex items-center space-x-2 bg-blue-50 p-2 rounded-lg"><i class="fa fa-exchange text-primary text-xs"></i><span class="text-[10px]" data-i18n="card.sec3">免费转移</span></div><div class="flex items-center space-x-2 bg-blue-50 p-2 rounded-lg"><i class="fa fa-headphones text-primary text-xs"></i><span class="text-[10px]" data-i18n="card.sec4">24/7客服</span></div></div></div>
+              <button class="w-full bg-primary hover:bg-primary/90 text-white py-2 md:py-3 rounded-lg font-semibold transition-all duration-300 btn-hover focus:outline-none focus:ring-2 focus:ring-primary/50 shadow-lg shadow-primary/20 text-sm md:text-base transform hover:scale-105 hover:shadow-xl" id="buy-btn" data-i18n="card.buyBtn">立即购买</button>
+              <div class="mt-3 text-center text-[10px] md:text-xs text-gray-500"><p data-i18n="card.agree">点击"立即购买"即表示您同意我们的 <a href="#" class="text-primary hover:underline">条款和条件</a>，您将被重定向到交易平台</p></div>
+            </div>
+            <div class="mt-4 bg-blue-50 p-4 rounded-lg"><div class="flex items-start"><i class="fa fa-info-circle text-primary mt-1 mr-2"></i><div><h3 class="font-semibold mb-1 text-xs md:text-sm" data-i18n="card.moreTitle">需要更多信息？</h3><p class="text-[10px] md:text-xs text-gray-600" data-i18n="card.moreDesc">联系专业域名经纪人获取详细信息</p><button class="mt-2 text-primary hover:text-primary/80 text-[10px] md:text-xs font-medium flex items-center contact-broker" data-i18n="card.moreBtn"><i class="fa fa-user-circle-o mr-1"></i> 专业域名经纪人</button></div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 域名價值說明 -->
+      <div class="mt-12 max-w-4xl mx-auto">
+        <div class="text-center mb-8"><h2 class="text-2xl md:text-3xl font-bold mb-3" data-i18n="value.title">为什么这个域名如此有价值？</h2><p class="text-light/80 max-w-2xl mx-auto text-sm md:text-base" data-i18n="value.subtitle">简短、易记且含义丰富的域名是数字时代的宝贵资产，具有巨大的品牌建设潜力</p></div>
+        <details class="bg-glass p-4 rounded-xl mb-4 md:hidden"> <summary class="cursor-pointer font-semibold text-base mb-2" data-i18n="value.expand">展开价值说明</summary>
+          <div class="grid gap-4 mt-4" id="mobile-value"></div>
+        </details>
+        <div class="hidden md:grid md:grid-cols-3 gap-4" id="desktop-value">
+          <div class="bg-glass p-6 rounded-xl card-hover"><div class="text-secondary text-3xl mb-4"><i class="fa fa-line-chart"></i></div><h3 class="text-lg font-semibold mb-2" data-i18n="value.card1Title">高品牌价值</h3><p class="text-light/80 text-sm" id="brand-desc" data-i18n="value.card1Desc">haichu.com 简洁易记，与游戏、科技相关领域高度契合，是打造成功品牌的理想选择。</p></div>
+          <div class="bg-glass p-6 rounded-xl card-hover"><div class="text-secondary text-3xl mb-4"><i class="fa fa-search"></i></div><h3 class="text-lg font-semibold mb-2" data-i18n="value.card2Title">SEO优势</h3><p class="text-light/80 text-sm" data-i18n="value.card2Desc">简短的.com域名在搜索引擎中具有天然优势，能为您的网站带来更多的自然流量。</p></div>
+          <div class="bg-glass p-6 rounded-xl card-hover"><div class="text-secondary text-3xl mb-4"><i class="fa fa-globe"></i></div><h3 class="text-lg font-semibold mb-2" data-i18n="value.card3Title">全球适用性</h3><p class="text-light/80 text-sm" data-i18n="value.card3Desc">.com顶级域名是全球公认的标准，适用于任何国家和地区的用户，无语言障碍。</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 其餘腳本（保留原有） -->
+  <script>
+    // === 多語言字典 ===
+    const translations = {
+      zh: {
+        "nav.whois": "WHOIS",
+        "nav.contact": "联系我们",
+        "nav.langLabel": "English",
+        "popup.title": "专业域名经纪人",
+        "popup.desc": "添加微信获取更多域名信息",
+        "popup.tip": "扫描二维码或搜索：hr7388",
+        "popup.close": "关闭",
+        "main.title": "域名出售",
+        "main.premium": "优质域名",
+        "main.whoisBtn": "<i class='fa fa-info-circle mr-1'></i> WHOIS",
+        "features.title": "为什么选择这个域名",
+        "features.f1": "简洁易记，品牌价值高",
+        "features.f2": "全球顶级域名，安全可靠",
+        "features.f3": "完美适用于游戏、科技、娱乐平台",
+        "features.f4": "已做SEO优化，利于搜索引擎排名",
+        "stats.price": "当前报价 (CNY)",
+        "stats.asset": "优质",
+        "stats.assetDesc": "数字资产",
+        "stats.success": "转移成功率",
+        "stats.instant": "立即",
+        "stats.instantDesc": "可交易",
+        "stats.escrow": "阿里云",
+        "card.get": "获取这个域名",
+        "card.offer": "限时特惠",
+        "card.once": "一次性支付，无隐藏费用",
+        "card.paymentTitle": "支付方式",
+        "card.secTitle": "交易保障",
+        "card.sec1": "安全支付",
+        "card.sec2": "极速完成交割",
+        "card.sec3": "免费转移",
+        "card.sec4": "24/7客服",
+        "card.buyBtn": "立即购买",
+        "card.agree": "点击\"立即购买\"即表示您同意我们的 <a href='#' class='text-primary hover:underline'>条款和条件</a>，您将被重定向到交易平台",
+        "card.moreTitle": "需要更多信息？",
+        "card.moreDesc": "联系专业域名经纪人获取详细信息",
+        "value.title": "为什么这个域名如此有价值？",
+        "value.subtitle": "简短、易记且含义丰富的域名是数字时代的宝贵资产，具有巨大的品牌建设潜力",
+        "value.expand": "展开价值说明",
+        "value.card1Title": "高品牌价值",
+        "value.card1Desc": "haichu.com 简洁易记，与游戏、科技相关领域高度契合，是打造成功品牌的理想选择。",
+        "value.card2Title": "SEO优势",
+        "value.card2Desc": "简短的.com域名在搜索引擎中具有天然优势，能为您的网站带来更多的自然流量。",
+        "value.card3Title": "全球适用性",
+        "value.card3Desc": ".com顶级域名是全球公认的标准，适用于任何国家和地区的用户，无语言障碍。",
+        "card.moreBtn": "<i class='fa fa-user-circle-o mr-1'></i> 专业域名经纪人"
+      },
+      en: {
+        "nav.whois": "WHOIS",
+        "nav.contact": "Contact Us",
+        "nav.langLabel": "中文",
+        "popup.title": "Professional Domain Broker",
+        "popup.desc": "Add WeChat for more domain info",
+        "popup.tip": "Scan QR or search: hr7388",
+        "popup.close": "Close",
+        "main.title": "Domain For Sale",
+        "main.premium": "Premium Domain",
+        "main.whoisBtn": "<i class='fa fa-info-circle mr-1'></i> WHOIS",
+        "features.title": "Why choose this domain",
+        "features.f1": "Short, memorable, high brand value",
+        "features.f2": "Global top-level domain, secure and reliable",
+        "features.f3": "Perfect for gaming, tech, entertainment",
+        "features.f4": "SEO optimized, better search ranking",
+        "stats.price": "Current Price (CNY)",
+        "stats.asset": "Premium",
+        "stats.assetDesc": "Digital Asset",
+        "stats.success": "Transfer Success Rate",
+        "stats.instant": "Instant",
+        "stats.instantDesc": "Tradable Now",
+        "stats.escrow": "aliyun",
+        "card.get": "Get this domain",
+        "card.offer": "Limited Offer",
+        "card.once": "One-time payment, no hidden fees",
+        "card.paymentTitle": "Payment Methods",
+        "card.secTitle": "Transaction Security",
+        "card.sec1": "Secure Payment",
+        "card.sec2": "Fast Transfer",
+        "card.sec3": "Free Transfer",
+        "card.sec4": "24/7 Support",
+        "card.buyBtn": "Buy Now",
+        "card.agree": "By clicking 'Buy Now' you agree to our <a href='#' class='text-primary hover:underline'>Terms & Conditions</a>. You will be redirected to the trading platform",
+        "card.moreTitle": "Need more info?",
+        "card.moreDesc": "Contact a professional domain broker for details",
+        "value.title": "Why is this domain so valuable?",
+        "value.subtitle": "Short, memorable, and meaningful domains are valuable assets in the digital age, with huge brand-building potential.",
+        "value.expand": "Show value details",
+        "value.card1Title": "High Brand Value",
+        "value.card1Desc": "haichu.com is short, memorable, and highly relevant to gaming and tech, making it ideal for building a successful brand.",
+        "value.card2Title": "SEO Advantage",
+        "value.card2Desc": "Short .com domains have a natural advantage in search engines, bringing more organic traffic to your site.",
+        "value.card3Title": "Global Applicability",
+        "value.card3Desc": ".com TLDs are globally recognized and standard, suitable for users in any country or region, with no language barrier.",
+        "card.moreBtn": "<i class='fa fa-user-circle-o mr-1'></i> Domain Broker"
+      }
+    };
+    
+    let currentLang = 'zh';
+    function setLang(lang) {
+      currentLang = lang;
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang] && translations[lang][key]) {
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.placeholder = translations[lang][key];
+          } else {
+            // 品牌描述特殊处理，动态插入主域名
+            if (el.id === 'brand-desc' && key === 'value.card1Desc') {
+              el.innerHTML = translations[lang][key].replace('haichu.com', getMainDomain());
+            } else {
+              el.innerHTML = translations[lang][key];
+            }
+          }
+        }
+      });
+      // 切换按钮文字
+      const langBtn = document.getElementById('lang-switch');
+      if (langBtn) langBtn.innerText = translations[lang]['nav.langLabel'];
+    }
+    document.getElementById('lang-switch').addEventListener('click', function() {
+      setLang(currentLang === 'zh' ? 'en' : 'zh');
+    });
+    setLang(currentLang);
+
+    // 重新绑定弹窗事件
+    function showBrokerPopup() {
+      document.querySelector('.qr-code-popup').classList.add('active');
+    }
+    function hideBrokerPopup() {
+      document.querySelector('.qr-code-popup').classList.remove('active');
+    }
+    // 联系我们按钮
+    document.querySelectorAll('.contact-link').forEach(el => {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        showBrokerPopup();
+      });
+    });
+    // 专业域名经纪人按钮
+    document.querySelectorAll('.contact-broker').forEach(el => {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        showBrokerPopup();
+      });
+    });
+    // 关闭弹窗按钮
+    document.querySelectorAll('.close-qr').forEach(el => {
+      el.addEventListener('click', function() {
+        hideBrokerPopup();
+      });
+    });
+
+    // ====== 自动填充主域名 ======
+    function getMainDomain() {
+      let host = window.location.hostname;
+      if (host.startsWith('www.')) host = host.slice(4);
+      return host;
+    }
+    // 设置<title>只显示主域名
+    document.getElementById('dynamic-title').innerText = getMainDomain();
+    // 设置左上角logo
+    document.getElementById('site-domain').innerText = getMainDomain();
+    // 设置主内容区域名
+    document.getElementById('main-domain').innerText = getMainDomain();
+    // 设置品牌描述中的域名（初始加载时）
+    var brandDesc = document.getElementById('brand-desc');
+    if (brandDesc) {
+      brandDesc.innerHTML = translations[currentLang]['value.card1Desc'].replace('haichu.com', getMainDomain());
+    }
+    // 立即购买按钮跳转
+    var buyBtn = document.getElementById('buy-btn');
+    if (buyBtn) {
+      buyBtn.onclick = function() {
+        window.open('https://www.ename.com/domain/buynow/kf(ye1vv6mz!/180000', '_blank');
+      };
+    }
+    // WHOIS按钮自动查询当前主域名
+    var whoisNav = document.getElementById('whois-nav');
+    if (whoisNav) {
+      whoisNav.onclick = function(e) {
+        e.preventDefault();
+        window.open('https://who.cx/' + getMainDomain(), '_blank');
+      };
+    }
+    var whoisMain = document.getElementById('whois-main');
+    if (whoisMain) {
+      whoisMain.onclick = function(e) {
+        e.preventDefault();
+        window.open('https://who.cx/' + getMainDomain(), '_blank');
+      };
+    }
+    // 移动端菜单按钮功能和遮罩
+    var mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    var mobileMenu = document.getElementById('mobile-menu');
+    var mobileMenuMask = document.getElementById('mobile-menu-mask');
+    function closeMobileMenu() {
+      mobileMenu.classList.remove('show');
+      mobileMenuMask.classList.remove('show');
+    }
+    if (mobileMenuBtn && mobileMenu && mobileMenuMask) {
+      mobileMenuBtn.onclick = function(e) {
+        e.stopPropagation();
+        mobileMenu.classList.add('show');
+        mobileMenuMask.classList.add('show');
+      };
+      // 点击遮罩关闭
+      mobileMenuMask.onclick = closeMobileMenu;
+      // 滑动屏幕关闭
+      window.addEventListener('touchmove', function(e) {
+        if (mobileMenu.classList.contains('show')) closeMobileMenu();
+      }, {passive:true});
+      // 点击菜单项后自动关闭菜单
+      document.querySelectorAll('#mobile-menu a, #mobile-menu button').forEach(function(el) {
+        el.onclick = function() {
+          closeMobileMenu();
+        };
+      });
+    }
+    // 移动端WHOIS按钮
+    var whoisNavMobile = document.getElementById('whois-nav-mobile');
+    if (whoisNavMobile) {
+      whoisNavMobile.onclick = function(e) {
+        e.preventDefault();
+        window.open('https://who.cx/' + getMainDomain(), '_blank');
+      };
+    }
+    // 移动端语言切换按钮
+    var langSwitchMobile = document.getElementById('lang-switch-mobile');
+    function updateMobileLangBtn() {
+      if (langSwitchMobile) {
+        langSwitchMobile.innerText = translations[currentLang]['nav.langLabel'];
+      }
+      // 同步移动端菜单"联系我们"
+      var contactLinkMobile = document.querySelector('#mobile-menu .contact-link');
+      if (contactLinkMobile) {
+        contactLinkMobile.innerText = translations[currentLang]['nav.contact'];
+      }
+    }
+    if (langSwitchMobile) {
+      langSwitchMobile.onclick = function() {
+        setLang(currentLang === 'zh' ? 'en' : 'zh');
+        updateMobileLangBtn();
+      };
+      updateMobileLangBtn();
+    }
+    // 语言切换时同步移动端按钮文字
+    var oldSetLang2 = setLang;
+    setLang = function(lang) {
+      oldSetLang2(lang);
+      fillMobileValue && fillMobileValue();
+      updateMobileLangBtn();
+    }
+    // 移动端"展开价值说明"内容填充，与桌面端一致
+    function fillMobileValue() {
+      var mobileValue = document.getElementById('mobile-value');
+      if (!mobileValue) return;
+      mobileValue.innerHTML = '';
+      var valueCards = [
+        {
+          icon: '<i class="fa fa-line-chart"></i>',
+          title: translations[currentLang]['value.card1Title'],
+          desc: translations[currentLang]['value.card1Desc'].replace('haichu.com', getMainDomain())
+        },
+        {
+          icon: '<i class="fa fa-search"></i>',
+          title: translations[currentLang]['value.card2Title'],
+          desc: translations[currentLang]['value.card2Desc']
+        },
+        {
+          icon: '<i class="fa fa-globe"></i>',
+          title: translations[currentLang]['value.card3Title'],
+          desc: translations[currentLang]['value.card3Desc']
+        }
+      ];
+      valueCards.forEach(function(card) {
+        var div = document.createElement('div');
+        div.className = 'bg-glass p-6 rounded-xl card-hover';
+        div.innerHTML = '<div class="text-secondary text-3xl mb-4">' + card.icon + '</div>' +
+          '<h3 class="text-lg font-semibold mb-2">' + card.title + '</h3>' +
+          '<p class="text-light/80 text-sm">' + card.desc + '</p>';
+        mobileValue.appendChild(div);
+      });
+    }
+    fillMobileValue();
+  </script>
+</body>
+</html>
